@@ -11,7 +11,7 @@ Instagram MCP server for Claude Code and AI agents. Read your own accounts, rese
 
 Three tiers of access behind one tool surface, and every answer tells you which tier it came from.
 
-Built by [Navid Moazzez](https://navid.me?utm_source=github&utm_medium=readme&utm_campaign=instagram-mcp).
+Built by [Navid Moazzez](https://navid.me?utm_source=github&utm_medium=referral&utm_campaign=instagram-mcp&utm_content=readme).
 
 <img src="https://cdn.navid.media/repos/instagram-mcp.gif?v=1" alt="Claude Code using the Instagram MCP server" width="520">
 
@@ -746,8 +746,8 @@ life. This Instagram MCP server is one piece of that system.
 
 **Links**
 
-- Personal website: [navid.me](https://navid.me?utm_source=github&utm_medium=readme&utm_campaign=instagram-mcp)
-- Navid Media: [navid.media](https://navid.media?utm_source=github&utm_medium=readme&utm_campaign=instagram-mcp)
+- Personal website: [navid.me](https://navid.me?utm_source=github&utm_medium=referral&utm_campaign=instagram-mcp&utm_content=readme)
+- Navid Media: [navid.media](https://navid.media?utm_source=github&utm_medium=referral&utm_campaign=instagram-mcp&utm_content=readme)
 - YouTube: [@thenavidm](https://youtube.com/@thenavidm?sub_confirmation=1) and [@thenavidai](https://youtube.com/@thenavidai?sub_confirmation=1)
 - X: [@thenavidm](https://x.com/thenavidm)
 - Instagram: [@thenavidm](https://instagram.com/thenavidm)
@@ -774,4 +774,4 @@ Meta.
 
 ---
 
-© 2026 [NM Media](https://navid.media?utm_source=github&utm_medium=readme&utm_campaign=instagram-mcp). Made with ❤️ by [Navid Moazzez](https://navid.me?utm_source=github&utm_medium=readme&utm_campaign=instagram-mcp).
+© 2026 [NM Media](https://navid.media?utm_source=github&utm_medium=referral&utm_campaign=instagram-mcp&utm_content=readme). Made with ❤️ by [Navid Moazzez](https://navid.me?utm_source=github&utm_medium=referral&utm_campaign=instagram-mcp&utm_content=readme).
