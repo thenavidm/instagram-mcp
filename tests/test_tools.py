@@ -19,7 +19,7 @@ PROFILE = {"id": "1", "username": "thenavidm", "followers_count": 100, "media_co
 async def test_every_tool_is_registered_with_a_description_and_schema(make_server):
     server, runtime = make_server({})
     tools = await server.list_tools()
-    assert len(tools) == 45
+    assert len(tools) == 46
     assert all(t.description for t in tools)
     assert all(t.output_schema is not None for t in tools)
     await runtime.aclose()

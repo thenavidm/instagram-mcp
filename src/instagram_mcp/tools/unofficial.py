@@ -22,6 +22,7 @@ from mcp.server import MCPServer
 from mcp.types import ToolAnnotations
 
 from ..config import Tier
+from ..media import describe_media, download_media, media_locator
 from ..runtime import Runtime, result
 from ..safety import NOT_IMPLEMENTED, audit, frame_rows, require_confirm, require_write
 from ..unofficial import simplify
@@ -93,6 +94,28 @@ def register(server: MCPServer, runtime: Runtime) -> None:
         media = await unofficial.run("user_medias", await _user_id(username), amount)
         rows = [simplify(m) for m in media]
         return ok(username=username.lstrip("@"), count=len(rows), media=frame_rows(rows))
+
+    @server.tool(
+        description=(
+            "One Instagram post by numeric media id or permalink, with every carousel asset "
+            "in order. Set download=true to save images and videos plus a source manifest "
+            "under IG_MCP_DATA_DIR/media. Returns local paths and SHA-256 hashes for later "
+            "inspection. Never publishes. CDN URLs expire; saved files persist."
+        ),
+        annotations=ToolAnnotations(
+            readOnlyHint=False, destructiveHint=False, openWorldHint=True
+        ),
+    )
+    async def unofficial_media(media: str, download: bool = False) -> dict[str, Any]:
+        kind, locator = media_locator(media)
+        media_id = (
+            await unofficial.run("media_pk_from_url", locator) if kind == "url" else locator
+        )
+        post = await unofficial.run("media_info", str(media_id))
+        details = frame_rows([describe_media(simplify(post))])[0]
+        if download:
+            details = await download_media(details, settings.data_dir)
+        return ok(media=details)
 
     @server.tool(
         description=(

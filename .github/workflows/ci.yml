@@ -34,7 +34,7 @@ jobs:
 
       - run: uv run ruff check .
 
-      # The suite covers the server building, all 45 tools registering with
+      # The suite covers the server building, all 46 tools registering with
       # descriptions and schemas, write gating, and injection framing. It runs
       # against a scripted transport and never touches the network.
       - run: uv run pytest -q

@@ -25,7 +25,7 @@ Built by [Navid Moazzez](https://navid.me?utm_source=github&utm_medium=readme&ut
 | 4 | [Get your token](#4-get-your-token-) | One command does the exchange |
 | 5 | [Connect your client](#5-connect-your-client-) | Claude Code, Desktop, Cursor, the rest |
 | 6 | [Check it worked](#6-check-it-worked-) | `doctor`, and the two things that actually fail |
-| 7 | [Tools](#7-tools-) | All 45, by what they reach |
+| 7 | [Tools](#7-tools-) | All 46, by what they reach |
 | 8 | [The three tiers](#8-the-three-tiers-) | What each one can see |
 | 9 | [Multiple accounts](#9-multiple-accounts-) | One server, several logins |
 | 10 | [Notes and gotchas](#10-notes-and-gotchas-) | Quotas, windows, and silent failures |
@@ -400,7 +400,7 @@ them.
 
 ## 7. Tools 🧰
 
-45 tools. Every result carries a `source` field naming the tier that answered,
+46 tools. Every result carries a `source` field naming the tier that answered,
 so a model can never present a scraped guess as an official metric.
 
 ### Your accounts
@@ -485,6 +485,7 @@ Off unless you turn it on. See [section 8](#8-the-three-tiers-).
 | `unofficial_status` | Whether the tier is on, and what is deliberately not implemented |
 | `unofficial_profile` | Full public profile for any account, including personal ones |
 | `unofficial_posts` | Recent posts by any public account |
+| `unofficial_media` | One post's ordered assets; optional local download and source manifest |
 | `unofficial_stories` | Stories live on any public account |
 | `unofficial_followers` | Followers, newest first, capped at 200 |
 | `unofficial_following` | Accounts an account follows, capped at 200 |
@@ -493,6 +494,19 @@ Off unless you turn it on. See [section 8](#8-the-three-tiers-).
 | `unofficial_inbox` | Your real inbox, including message requests |
 | `unofficial_thread` | Messages inside one inbox thread |
 | `unofficial_send_dm` | A cold DM. Needs `confirm` |
+
+`unofficial_media` accepts a numeric media id or an Instagram post or reel URL.
+Its default returns metadata and the current CDN URLs. With `download=true`,
+it saves every image or video in order, plus `manifest.json` containing the
+source permalink, framed caption, paths, byte counts and SHA-256 hashes. Use
+those paths with your client's image or video inspection tools.
+
+Downloads live in a new directory under `IG_MCP_DATA_DIR/media` on each call.
+They survive server restarts and expired CDN links. Delete a download's directory
+to remove it. Downloads are limited to 20 assets, 100 MiB per asset and 200 MiB
+per post. A failed download leaves no partial reference. They use the existing
+saved session for metadata, make no Instagram writes, and remain available with
+`IG_READ_ONLY=1`.
 
 Three things are deliberately absent: `follow_user`, `unfollow_user` and
 `bulk_like`. They are what every growth-hack tool ships and they are the three
@@ -691,7 +705,8 @@ tools are then not registered, so the model cannot see or call them.
 
 It stores follower counts and post engagement readings in a SQLite file in your
 data directory, so it can answer "what changed since Monday". An audit log of every
-attempted write. A session file if you use the unofficial tier.
+attempted write. A session file if you use the unofficial tier. Media files and
+source manifests when you call `unofficial_media` with `download=true`.
 
 All of it is local. Nothing is sent anywhere except to Instagram. Delete the
 data directory and it is gone.
