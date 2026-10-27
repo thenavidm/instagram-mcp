@@ -43,6 +43,22 @@ video only (https://developers.facebook.com/docs/instagram-platform/content-publ
 call. Do not add an image upload: Meta documents none, and an image container
 takes `image_url` alone.
 
+**Never log a Graph URL.** The token travels in its query string. `graph.py`
+sets the `httpx2` logger to WARNING and filters tokens out of its records,
+because the MCP SDK turns INFO on for the root logger and clients keep server
+stderr in log files. A test fails if a token reaches the log at DEBUG.
+
+**Ask each login path only for fields it has.** `account_type` exists on
+Instagram Login only; on Facebook Login, Graph refuses the whole call. Use
+`own.profile_fields(account)`.
+
+**`instagram-mcp call` goes through the server.** `cli.py` builds the same
+server and calls the tool with `server.call_tool`, so the write gate, the
+confirmation and the audit log are the ones MCP uses. `--confirm` is the only
+way to confirm there. The exit codes are the house contract; `cli.exit_code`
+maps each failure, unwrapping only the SDK's own plain `ToolError`, because
+`InstagramError` is a `ToolError` too.
+
 **`confirm` goes on irreversible tools only.** Publishing, deleting a comment,
 sending a DM. Not on replies, hides, or anything else that is one click to undo.
 Confirming everything trains the reflex that makes the confirmation on a real

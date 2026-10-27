@@ -1,4 +1,7 @@
-"""The command line. One entry point, six subcommands.
+"""The command line. One entry point, eight subcommands.
+
+`call` runs any tool as a command, for a script or a scheduler, and `tools`
+lists them; both live in cli.py.
 
 `doctor` is the one to care about. Instagram integrations fail for about six
 reasons and all of them look identical from inside an MCP client, which reports
@@ -26,6 +29,7 @@ from .config import (
 )
 from .graph import GraphClient, GraphError
 from .server import build_server
+from .tools.own import account_type, profile_fields
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -46,6 +50,34 @@ def _parser() -> argparse.ArgumentParser:
     )
     login.add_argument("--username", help="Instagram username. Prompted for if omitted.")
     login.add_argument("--code", help="Six-digit two-factor code, if the account has 2FA on.")
+
+    call = sub.add_parser(
+        "call",
+        help="Run one tool and print its JSON result. Tool arguments go as --name value.",
+        allow_abbrev=False,
+        description=(
+            "Run one tool, through the same server and the same confirmation as MCP. "
+            "Arguments go as --name value flags, read against the tool's schema, or as a "
+            "JSON object with --args. Exit codes: 0 ok, 1 unexpected, 2 usage or a refused "
+            "write, 3 not found, 4 auth, 5 API, 7 rate limited, 10 nothing configured."
+        ),
+    )
+    call.add_argument("tool", help="The tool's name, with dashes or underscores.")
+    call.add_argument("--account", help="Which connected account acts, by name.")
+    call.add_argument("--args", dest="args_json", help="The tool's arguments as a JSON object.")
+    call.add_argument(
+        "--confirm",
+        action="store_true",
+        help="Confirm a publish, delete or DM. Only when that exact action was asked for.",
+    )
+    call.add_argument(
+        "--agent", action="store_true", help="Compact JSON on one line. Never confirms."
+    )
+    call.add_argument("--unofficial", action="store_true", help="Enable the private-API tier.")
+
+    tools = sub.add_parser("tools", help="List every tool: risk, confirmation, arguments.")
+    tools.add_argument("--agent", action="store_true", help="JSON instead of a table.")
+    tools.add_argument("--unofficial", action="store_true", help="Include the unofficial tier.")
 
     sub.add_parser("doctor", help="Check the configuration and say what is broken.")
     sub.add_parser("refresh", help="Extend Instagram Login tokens by another 60 days.")
@@ -165,13 +197,13 @@ async def _doctor_async() -> int:
             label = f"{account.name} ({account.tier.value})"
             try:
                 profile = await graph.call(
-                    account,
-                    f"/{account.user_id}",
-                    {"fields": "id,username,account_type,followers_count"},
+                    account, f"/{account.user_id}", {"fields": profile_fields(account)}
                 )
+                kind = account_type(account, profile) or "unknown type"
                 print(
-                    f"Token {label}: OK, @{profile.get('username')} "
-                    f"({profile.get('account_type')}), {profile.get('followers_count')} followers"
+                    f"Token {label}: OK, @{profile.get('username')} ({kind}), "
+                    f"{profile.get('followers_count')} followers, "
+                    f"{profile.get('media_count')} posts"
                 )
             except GraphError as exc:
                 failures += 1
@@ -368,11 +400,40 @@ async def _token_async(args: argparse.Namespace) -> int:
     return 0
 
 
-def main() -> int:
-    args = _parser().parse_args()
+def main(argv: list[str] | None = None) -> int:
+    parser = _parser()
+    args, extra = parser.parse_known_args(argv)
     command = args.command or "run"
+    # Only `call` takes flags it cannot know in advance: the tool's own arguments.
+    if extra and command != "call":
+        parser.error(f"unrecognized arguments: {' '.join(extra)}")
 
     try:
+        if command == "call":
+            from .cli import call_tool
+
+            try:
+                settings = load_settings(unofficial=args.unofficial)
+            except ConfigError as exc:
+                from .cli import _fail
+
+                return _fail(exc, args.agent)
+            return asyncio.run(
+                call_tool(
+                    settings,
+                    args.tool,
+                    extra,
+                    args_json=args.args_json,
+                    account=args.account,
+                    confirm=args.confirm,
+                    agent=args.agent,
+                )
+            )
+        if command == "tools":
+            from .cli import list_tools
+
+            settings = load_settings(unofficial=args.unofficial)
+            return asyncio.run(list_tools(settings, agent=args.agent))
         if command == "run":
             return _run(args)
         if command == "login":

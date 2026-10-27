@@ -20,6 +20,8 @@ Two details here are easy to get wrong and expensive to get wrong:
 from __future__ import annotations
 
 import asyncio
+import logging
+import re
 from pathlib import Path
 from typing import Any, Literal
 
@@ -43,6 +45,29 @@ _UPLOAD_CHUNK_BYTES = 1024 * 1024
 _UPLOAD_ATTEMPTS = 3
 
 
+_TOKEN_IN_TEXT = re.compile(r"(access_token=|input_token=|OAuth |Bearer )[^&\s\"']+")
+
+
+class _RedactTokens(logging.Filter):
+    """Strip tokens from a log line before any handler sees it."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
+        redacted = _TOKEN_IN_TEXT.sub(r"\1[redacted]", message)
+        if redacted != message:
+            record.msg, record.args = redacted, ()
+        return True
+
+
+# httpx2 logs every request URL at INFO, and a Graph URL carries the access token
+# in its query string. The MCP SDK turns INFO on for the root logger, so without
+# this every token reached stderr, which MCP clients keep in their log files.
+# The level keeps those lines out; the filter covers anyone who turns it back up.
+_HTTP_LOG = logging.getLogger("httpx2")
+_HTTP_LOG.setLevel(logging.WARNING)
+_HTTP_LOG.addFilter(_RedactTokens())
+
+
 class GraphError(InstagramError):
     """A Graph API call failed and the message says why in plain language."""
 
@@ -53,10 +78,13 @@ class GraphError(InstagramError):
         code: int | None = None,
         subcode: int | None = None,
         retriable: bool = False,
+        status: int | None = None,
     ):
         super().__init__(message)
         self.code = code
         self.subcode = subcode
+        # The HTTP status, when there was a response. The CLI's exit code reads it.
+        self.status = status
         # Only the upload sets this: a dropped connection or a fault Meta calls
         # retriable is worth sending again. A rejected request never is.
         self.retriable = retriable
@@ -90,7 +118,7 @@ def _explain(body: dict[str, Any], status: int, path: str) -> GraphError:
             "to see which metrics this account still answers."
         )
 
-    return GraphError(f"{path}: {message}{hint}", code=code, subcode=subcode)
+    return GraphError(f"{path}: {message}{hint}", code=code, subcode=subcode, status=status)
 
 
 def _upload_answer(response: httpx2.Response) -> dict[str, Any]:
@@ -124,6 +152,7 @@ def _upload_answer(response: httpx2.Response) -> dict[str, Any]:
         f"upload {response.status_code}{f' {kind}' if kind else ''}: "
         f"{reason or 'no reason given'}.{hint}",
         retriable=info.get("retriable") is True or response.status_code >= 500,
+        status=response.status_code,
     )
 
 

@@ -2,10 +2,22 @@
 
 | Component | Version | Last Updated |
 |-----------|---------|--------------|
-| thenavidm-instagram-mcp | 0.3.0 | 2026-10-27 |
+| thenavidm-instagram-mcp | 0.4.0 | 2026-10-27 |
 | Graph API | v26.0 | 2026-10-27 |
 
 ---
+
+## 0.4.0, 2026-10-27
+
+Every tool as a command, and the Facebook Login path working end to end. Checked against five real Facebook Login accounts with reads only: `doctor` passes for all five, and `list_accounts`, `get_media` and `get_publishing_limit` answer for each.
+
+- **`instagram-mcp call <tool>`** runs any of the 46 tools from a shell, through the same server, the same write gate, confirmation and audit log as MCP, and prints the tool's JSON result. Arguments are `--name value` flags read against the tool's schema, or one JSON object with `--args`, the flags winning. `--confirm` is the only way to confirm: `confirm` inside the arguments is refused and `--agent` never adds it, and a tool with nothing to confirm ignores it, so a scheduler can pass `--confirm --agent` to every command. Exit codes follow the house contract: 0 ok, 1 unexpected, 2 usage or a refused write, 3 not found, 4 auth, 5 API, 7 rate limited, 10 nothing configured; Meta's own error code decides before the HTTP status, since it answers most failures with a 400. A failure is one JSON object on stderr. `instagram-mcp tools` lists every tool with its risk, whether it needs `--confirm`, and its arguments, or as JSON with `--agent`.
+- **`doctor`, `list_accounts` and `whoami` work on Facebook Login.** They asked every account for `account_type`, which exists only on Instagram Login, and Graph refused the whole call on the Facebook Login path with "(#100) Tried accessing nonexisting field (account_type)", so every Facebook Login account failed. Each path is now asked only for the fields it has, and a Facebook Login account reports as a Business or Creator account, the only kind that path reaches. `doctor` also prints each account's post count.
+- **Tokens no longer reach the log.** httpx2 logged every request URL at INFO, the MCP SDK turns INFO on, and a Graph URL carries the access token in its query string, so a running server wrote each token it used to stderr, which MCP clients keep in their log files. Those lines are off, and a filter strips tokens from them even at DEBUG. If you ran 0.3.0 or earlier as an MCP server, the tokens it used may be in your client's MCP logs: delete those logs, or rotate the tokens.
+
+### Upgrading
+
+Nothing changes over MCP. `list_accounts` reports `type: BUSINESS_OR_CREATOR` for a Facebook Login account, where it failed before.
 
 ## 0.3.0, 2026-10-27
 

@@ -401,6 +401,45 @@ them.
 
 ## 7. Tools 🧰
 
+### From the command line
+
+Every tool also runs as a command, through the same server and the same
+confirmation as over MCP. `instagram-mcp call <tool>` prints the tool's JSON
+result, and its exit code is what a script, cron or a scheduler branches on.
+`instagram-mcp tools` lists them, marking with `!` the ones that need
+`--confirm`.
+
+```bash
+instagram-mcp tools                                         # every tool, one line each
+instagram-mcp call get-publishing-limit --account yourbrand
+instagram-mcp call publish-reel --account yourbrand \
+  --file /Users/you/Movies/launch.mp4 --caption "It's live" --confirm --agent
+instagram-mcp call create-container --account yourbrand \
+  --args '{"file": "/Users/you/Movies/launch.mp4", "caption": "Later"}'
+```
+
+- A tool's arguments are `--name value`, with dashes or underscores. A boolean
+  alone means true; a list takes the flag once per item, or a JSON list.
+  `--args` takes them all as one JSON object, and flags win over it.
+- `--confirm` is the only way to confirm from the shell. `confirm` inside the
+  arguments is refused, and `--agent` (compact JSON on one line) never adds it.
+  A tool with nothing to confirm ignores `--confirm`, so a scheduler can pass it
+  to every command.
+- A failure is one JSON object on stderr, `{"error": ..., "code": ...}`.
+
+| Exit | Means |
+|---|---|
+| 0 | Done |
+| 1 | Unexpected error |
+| 2 | Usage: an unknown tool or flag, a bad value, or a write refused (read-only, or no `--confirm`) |
+| 3 | Not found: an account name that is not connected, or a Graph 404 |
+| 4 | Auth: a token Meta refuses or a missing permission |
+| 5 | Meta failed, or did not answer |
+| 7 | Rate limited, wait and retry |
+| 10 | Nothing configured: no account, or the unofficial tier off |
+
+### Every tool
+
 46 tools. Every result carries a `source` field naming the tier that answered,
 so a model can never present a scraped guess as an official metric.
 
@@ -639,6 +678,9 @@ IG_PREFERRED=thenavidm,thenavidai
 - **Every write is logged.** One JSON line per attempted write, allowed or
   refused, to `IG_AUDIT_LOG` or the data directory. The model has no tool to
   read or edit that file.
+- **Tokens stay out of the logs.** A Graph URL carries the token in its query
+  string, and the HTTP library logs each URL. Those lines are off, and a filter
+  removes any token from them if someone turns them back on.
 
 ## 11. Troubleshooting 🔧
 
@@ -659,6 +701,7 @@ Run `instagram-mcp doctor` first. It diagnoses most of this.
 | `upload 401 NotAuthorizedError` | The token lacks `instagram_content_publish`, or the app is not on Facebook Login for Business |
 | Publishing says a container is still processing | A large video. `get_container_status`, then `publish_container` once `FINISHED`, within 24 hours |
 | Unofficial tools refuse | Tier is off. Set `IG_UNOFFICIAL=1` and run `instagram-mcp login` once |
+| `doctor` or `list_accounts` says `Tried accessing nonexisting field (account_type)` | 0.3.0 or earlier on a Facebook Login account. `account_type` exists only on Instagram Login; 0.4.0 asks each path only for fields it has |
 
 ## 12. FAQ ❓
 

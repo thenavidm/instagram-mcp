@@ -14,16 +14,32 @@ from typing import Any
 from mcp.server import MCPServer
 from mcp.types import ToolAnnotations
 
-from ..config import Tier, pick
+from ..config import INSTAGRAM_HOST, Account, Tier, pick
 from ..errors import InstagramError
 from ..runtime import Runtime, result
 from ..safety import frame_rows
 
 READ = ToolAnnotations(readOnlyHint=True, openWorldHint=True)
 
-PROFILE_FIELDS = (
-    "id,username,account_type,media_count,followers_count,follows_count,profile_picture_url"
-)
+PROFILE_FIELDS = "id,username,media_count,followers_count,follows_count,profile_picture_url"
+
+
+def profile_fields(account: Account) -> str:
+    """The profile fields this account's host answers.
+
+    `account_type` exists only on Instagram Login (graph.instagram.com). On the
+    Facebook Login path Graph refuses the whole call with "(#100) Tried
+    accessing nonexisting field (account_type)", and every account it can reach
+    is a Business or Creator account anyway.
+    """
+    return PROFILE_FIELDS + (",account_type" if account.host == INSTAGRAM_HOST else "")
+
+
+def account_type(account: Account, profile: dict[str, Any]) -> str | None:
+    """Meta's account_type where it answers it; on Facebook Login, what that path implies."""
+    if profile.get("account_type"):
+        return str(profile["account_type"])
+    return None if account.host == INSTAGRAM_HOST else "BUSINESS_OR_CREATOR"
 MEDIA_FIELDS = "id,caption,media_type,permalink,timestamp,like_count,comments_count"
 
 # Meta retires insight metrics between Graph versions and does not always say so
@@ -65,7 +81,7 @@ def register(server: MCPServer, runtime: Runtime) -> None:
             # so a failure is reported on its own row rather than raised.
             try:
                 profile = await graph.call(
-                    account, f"/{account.user_id}", {"fields": PROFILE_FIELDS}
+                    account, f"/{account.user_id}", {"fields": profile_fields(account)}
                 )
             except Exception as exc:
                 return {**account.redacted(), "status": "error", "detail": str(exc)[:200]}
@@ -74,7 +90,7 @@ def register(server: MCPServer, runtime: Runtime) -> None:
                 **account.redacted(),
                 "status": "ok",
                 "username": profile.get("username"),
-                "type": profile.get("account_type"),
+                "type": account_type(account, profile),
                 "followers": profile.get("followers_count"),
                 "following": profile.get("follows_count"),
                 "posts": profile.get("media_count"),
@@ -95,7 +111,9 @@ def register(server: MCPServer, runtime: Runtime) -> None:
     )
     async def whoami(account: str | None = None) -> dict[str, Any]:
         target = pick(settings, account)
-        profile = await graph.call(target, f"/{target.user_id}", {"fields": PROFILE_FIELDS})
+        profile = await graph.call(
+            target, f"/{target.user_id}", {"fields": profile_fields(target)}
+        )
         await store.record_profile(target.name, profile)
         # A biography is written by the account holder, but on a Business account
         # it can be edited by anyone with access, so it is framed like any other
