@@ -19,7 +19,7 @@ PROFILE = {"id": "1", "username": "thenavidm", "followers_count": 100, "media_co
 async def test_every_tool_is_registered_with_a_description_and_schema(make_server):
     server, runtime = make_server({})
     tools = await server.list_tools()
-    assert len(tools) == 45
+    assert len(tools) == 46
     assert all(t.description for t in tools)
     assert all(t.output_schema is not None for t in tools)
     await runtime.aclose()
@@ -35,6 +35,7 @@ async def test_read_only_removes_the_write_tools_from_the_list(make_server):
         "send_dm", "private_reply_to_comment",
     }
     assert "get_comments" in names  # reads survive
+    assert "get_container_status" in names
     await runtime.aclose()
 
 
@@ -111,7 +112,7 @@ async def test_unofficial_status_reports_what_is_deliberately_missing(make_serve
 
 async def test_carousel_rejects_a_bad_length_before_any_network_call(make_server, recorder):
     server, runtime = make_server({})
-    with pytest.raises(ToolError, match="2 to 10"):
+    with pytest.raises(ToolError, match="2 to 20"):
         await server.call_tool("post_carousel", {"image_urls": ["a"], "confirm": True})
     assert recorder == []
     await runtime.aclose()

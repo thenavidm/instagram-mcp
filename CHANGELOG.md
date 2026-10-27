@@ -2,9 +2,29 @@
 
 | Component | Version | Last Updated |
 |-----------|---------|--------------|
-| thenavidm-instagram-mcp | 0.2.0 | 2026-09-01 |
+| thenavidm-instagram-mcp | 0.3.0 | 2026-10-27 |
+| Graph API | v26.0 | 2026-10-27 |
 
 ---
+
+## 0.3.0, 2026-10-27
+
+Publishing from a file on this machine. 46 tools, from 45. Every Meta rule below is from the [content publishing guide](https://developers.facebook.com/docs/instagram-platform/content-publishing/) and the [IG User Media reference](https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media), read on 2026-10-27.
+
+- **`file` on every publishing tool.** `post`, `create_container`, `publish_reel` and `publish_story` take the path of a video on this machine, next to `image_url` and `video_url`. It goes up with Meta's resumable upload: a container opened with `upload_type=resumable`, then the bytes POSTed to `rupload.facebook.com` with `Authorization: OAuth`, `offset` and `file_size` headers, streamed from disk. A dropped connection is sent again from the first byte, up to three sends, since Meta documents no way to ask an Instagram upload how far it got. A rejected upload says Meta's `debug_info` type and message.
+- **`post_carousel` takes `items`**, image and video URLs and video paths in order, and up to 20 of them, Meta's current limit, where it took 2 to 10 images. Video children are waited on before the carousel is made. `image_urls` still works.
+- **What Meta does not allow is refused before any call, with the reason.** An image file: Meta's resumable upload takes video only and an image container takes `image_url` alone, so host the JPEG. A file on an Instagram Login account: Meta lists the upload host for Facebook Login only, "Only for apps that have implemented Facebook Login for Business". A reel over 300 MB or a story video over 100 MB. A carousel checks every file before it creates its first container, so a bad item leaves nothing behind.
+- **`get_container_status`** says where a staged container stands, `IN_PROGRESS`, `FINISHED`, `PUBLISHED`, `ERROR` or `EXPIRED`, in Meta's own words, and whether it can be published. `create_container` now returns `expires_at`, 24 hours on, and the media type it staged; a video file stages as a reel unless `media_type` is `STORIES` or `is_carousel_item` is set.
+- **`--version` tells the truth.** It said 0.1.0 while the package was 0.2.0; a test now keeps the two equal.
+- **Docs.** The README covers publishing a file, the two refusals and Meta's limits with a link for each: 100 API-published posts per 24 hours on the rate limit section and 50 on the carousel section of the same page, with `get_publishing_limit` reading the one Meta applies; containers expiring after 24 hours and 400 a day; carousels up to 20; the reel, story and image specs. Section 10 no longer says a local file cannot work. `SKILL.md` says there is no scheduling and how to stage and publish inside the 24 hours.
+
+Instagram still has no scheduling, and this server still does not pretend to: publish now, or stage and publish within 24 hours.
+
+Not checked against a real account yet: the resumable session, the upload and the carousel of video children, which the tests drive against a scripted Meta built from the guide's examples.
+
+### Upgrading
+
+`post`, `create_container` and `publish_story` take exactly one of `image_url`, `video_url` and `file`, where passing both URLs was let through to Meta. `publish_reel`'s `video_url` is optional, with `file` as the alternative. A carousel of 11 to 20 is now sent to Meta rather than refused here.
 
 ## 0.2.0
 

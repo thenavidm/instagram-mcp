@@ -65,7 +65,28 @@ undo.
 **Prefer staging.** When the user has not explicitly said "post it now",
 `create_container` stages the media, nothing appears in the app, and they can
 look at it first. Then `publish_container` when they say so. This is the only
-draft-like state Instagram has.
+draft-like state Instagram has, and Meta discards a container unpublished after
+24 hours. `get_container_status` says `IN_PROGRESS`, `FINISHED`, `EXPIRED` or
+`ERROR`; publish only once it is `FINISHED`.
+
+**There is no scheduling.** Instagram has none. Publish now, or stage and
+publish later inside the 24 hours. Do not promise a time.
+
+**Files from this machine.** Every publishing tool takes `file`, an absolute
+path (the server's working directory is not the user's), and `post_carousel`
+takes `items`, URLs and paths in order. A video file uploads with Meta's
+resumable upload. Two refusals are Meta's rules, not bugs to work around:
+
+- An image file is refused. Meta takes images only from a public `image_url`.
+  Say so and ask for a URL.
+- An Instagram Login account cannot upload a file; Meta documents the upload
+  for Facebook Login only. Use a URL, or name a Facebook Login account with
+  `account`.
+
+A video file posts as a reel unless `media_type` is `STORIES`. A large video
+may still be processing when a one-step publish gives up waiting: the error
+names the container, so check it with `get_container_status` and call
+`publish_container`, rather than publishing the file again.
 
 **Prefer `hide_comment` to `delete_comment`.** Hiding is reversible and the
 author still sees their own comment. Deleting is permanent.
@@ -97,8 +118,13 @@ The three failures that account for most of them:
 
 ## Limits worth knowing before you plan around them
 
-100 posts per 24 hours per account, across every API client. Check with
-`get_publishing_limit` before planning a batch.
+100 posts per 24 hours per account, across every API client, by Meta's rate
+limit section; the carousel section of the same page says 50. Check with
+`get_publishing_limit` before planning a batch: it returns the number Meta
+applies. A carousel counts as one post, and holds 2 to 20 items.
+
+Meta allows 400 containers per account in a rolling 24 hours, and discards
+each one unpublished after 24.
 
 30 unique hashtags per rolling 7 days. Resolved ids are cached, so repeats are
 free, but new ones are not.

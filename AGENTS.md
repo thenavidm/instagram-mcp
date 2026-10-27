@@ -35,6 +35,14 @@ enables writes: a permission everyone passes permanently is not a permission.
 the irreversible ones, both before argument validation, so a refusal costs no
 network call.
 
+**Local files go through `graph.create_resumable` and `graph.upload_file`.**
+Meta's resumable upload sends the bytes to rupload.facebook.com with an
+`Authorization: OAuth` header, and documents it for Facebook Login only and for
+video only (https://developers.facebook.com/docs/instagram-platform/content-publishing/).
+`publish.local_video` and `_needs_facebook_login` refuse the rest before any
+call. Do not add an image upload: Meta documents none, and an image container
+takes `image_url` alone.
+
 **`confirm` goes on irreversible tools only.** Publishing, deleting a comment,
 sending a DM. Not on replies, hides, or anything else that is one click to undo.
 Confirming everything trains the reflex that makes the confirmation on a real

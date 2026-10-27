@@ -7,7 +7,7 @@
 [![X](https://img.shields.io/badge/X-@thenavidm-black?logo=x)](https://x.com/thenavidm)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-thenavidm-0A66C2?logo=linkedin&logoColor=white)](https://linkedin.com/in/thenavidm)
 
-Instagram MCP server for Claude Code and AI agents. Read your own accounts, research any Business or Creator account on the platform, publish, and answer comments.
+Instagram MCP server for Claude Code and AI agents. Read your own accounts, research any Business or Creator account on the platform, publish (reels, stories and carousels from a video file on your machine, or from a URL), and answer comments.
 
 Three tiers of access behind one tool surface, and every answer tells you which tier it came from.
 
@@ -25,7 +25,7 @@ Built by [Navid Moazzez](https://navid.me?utm_source=github&utm_medium=referral&
 | 4 | [Get your token](#4-get-your-token-) | One command does the exchange |
 | 5 | [Connect your client](#5-connect-your-client-) | Claude Code, Desktop, Cursor, the rest |
 | 6 | [Check it worked](#6-check-it-worked-) | `doctor`, and the two things that actually fail |
-| 7 | [Tools](#7-tools-) | All 45, by what they reach |
+| 7 | [Tools](#7-tools-) | All 46, by what they reach |
 | 8 | [The three tiers](#8-the-three-tiers-) | What each one can see |
 | 9 | [Multiple accounts](#9-multiple-accounts-) | One server, several logins |
 | 10 | [Notes and gotchas](#10-notes-and-gotchas-) | Quotas, windows, and silent failures |
@@ -41,6 +41,7 @@ Built by [Navid Moazzez](https://navid.me?utm_source=github&utm_medium=referral&
 - Read every comment from my last ten posts and tell me what people keep asking.
 - Draft a reply to each comment that deserves one, in my voice. Do not post them.
 - Stage this carousel as a container so I can look at it before it goes live.
+- Post ~/Movies/launch.mp4 as a reel with this caption.
 - How many of today's 100 API posts have I used?
 
 The first two are the point. Instagram will tell you your follower count right
@@ -400,7 +401,7 @@ them.
 
 ## 7. Tools 🧰
 
-45 tools. Every result carries a `source` field naming the tier that answered,
+46 tools. Every result carries a `source` field naming the tier that answered,
 so a model can never present a scraped guess as an official metric.
 
 ### Your accounts
@@ -430,6 +431,7 @@ cannot be back-filled. This is the reason to install it before you need it.
 | Tool | Needs `confirm` |
 |---|---|
 | `create_container` | no, nothing goes public |
+| `get_container_status` | read |
 | `publish_container` | yes |
 | `post` | yes |
 | `post_carousel` | yes |
@@ -442,7 +444,52 @@ Instagram has, so it is what to use when a person should approve something
 before it goes live.
 
 Instagram has no native scheduling. Anything that claims to schedule a post is
-holding the job somewhere else and publishing it at the time.
+holding the job somewhere else and publishing it at the time. So there are two
+ways to publish: now, with `post`, `post_carousel`, `publish_reel` or
+`publish_story`, or staged, with `create_container`, then
+`get_container_status` until it says `FINISHED`, then `publish_container`
+within the 24 hours.
+
+### Publishing a file from your machine
+
+Every publishing tool takes `file`, a path on this machine, next to the URL
+arguments, and `post_carousel` takes `items`, URLs and paths mixed, in order.
+A video file goes up with Meta's resumable upload: a container opened with
+`upload_type=resumable`, then the bytes sent to `rupload.facebook.com`, as
+Meta's [content publishing guide](https://developers.facebook.com/docs/instagram-platform/content-publishing/)
+describes. The file is streamed from disk, and a dropped connection is sent
+again, up to three times. Meta documents no way to ask how far an Instagram
+upload got, so it starts again from the first byte rather than guessing.
+
+Two limits are Meta's, and both are checked before anything is sent:
+
+- **Facebook Login only.** The guide lists `rupload.facebook.com` as a host for
+  Facebook Login, and says resumable upload is "Only for apps that have
+  implemented Facebook Login for Business". An account on the Instagram Login
+  path still publishes from a URL; `instagram-mcp token --path facebook`
+  connects it the other way.
+- **Video only.** Meta's resumable upload takes reels, video stories and video
+  carousel items. An image container takes `image_url` and nothing else, so an
+  image file is refused with that reason: host the JPEG and pass its URL.
+
+| Tool | `file` takes | Without a `media_type` |
+|---|---|---|
+| `post` | a video | posts a reel; `media_type: STORIES` for a story |
+| `create_container` | a video | stages a reel; `STORIES`, or `is_carousel_item` for a carousel child |
+| `publish_reel` | a video | a reel |
+| `publish_story` | a video | a story |
+| `post_carousel` | `items`: image and video URLs, video paths | each item in order |
+
+### Meta's publishing limits
+
+| Limit | Meta's number | Source |
+|---|---|---|
+| API-published posts per account | 100 in a 24-hour moving period, a carousel counting as one. The carousel section of the same page says 50; `get_publishing_limit` reads the number Meta applies to your account | [Content publishing](https://developers.facebook.com/docs/instagram-platform/content-publishing/) |
+| Containers | Expire after 24 hours unpublished; 400 created per account in a rolling 24 hours | [IG User Media](https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media) |
+| Carousel | 2 to 20 images and videos, no reels | [Content publishing](https://developers.facebook.com/docs/instagram-platform/content-publishing/) |
+| Reel | MOV or MP4, 3 seconds to 15 minutes, 300 MB; 9:16 recommended | [IG User Media](https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media) |
+| Story video | 3 to 60 seconds, 100 MB | [IG User Media](https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media) |
+| Image | JPEG only, 8 MB | [IG User Media](https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media) |
 
 ### Comments and messages
 
@@ -561,11 +608,15 @@ IG_PREFERRED=thenavidm,thenavidai
 
 ## 10. Notes and gotchas 🚧
 
-- **Publishing needs public HTTPS URLs.** Meta fetches the media server-side, so
-  a local file path will not work. Host the image or video somewhere reachable
-  first.
+- **A video can come from your machine; an image cannot.** A video `file`
+  uploads through Meta's resumable upload on a Facebook Login account. An image
+  has to be at a public URL, because Meta fetches it server-side and documents
+  no upload for one.
 - **100 posts per 24 hours**, per account, across every API client, not just this
-  one. `get_publishing_limit` tells you where you are.
+  one, by the publishing guide's rate limit section; its carousel section says
+  50. `get_publishing_limit` tells you which applies and where you are.
+- **Containers expire after 24 hours.** A staged post that is not published by
+  then has to be staged again. `get_container_status` says `EXPIRED`.
 - **30 unique hashtags per rolling 7 days.** Resolved ids are cached locally so
   repeat lookups do not spend a slot, but the thirty-first new hashtag fails.
 - **`business_discovery` sees Business and Creator accounts only.** Never
@@ -603,6 +654,10 @@ Run `instagram-mcp doctor` first. It diagnoses most of this.
 | `growth_history` is empty | It needs readings from more than one day. It cannot back-fill |
 | Write tools are absent | `IG_READ_ONLY` is set |
 | A write asks for confirmation | Working as intended. Call it again with `confirm: true` |
+| A `file` refuses with "Facebook Login path" | The account uses Instagram Login, which Meta gives no upload host. Use a URL, or connect it with `token --path facebook` |
+| A `file` refuses as an image | Meta uploads video files only. Host the image and pass `image_url` |
+| `upload 401 NotAuthorizedError` | The token lacks `instagram_content_publish`, or the app is not on Facebook Login for Business |
+| Publishing says a container is still processing | A large video. `get_container_status`, then `publish_container` once `FINISHED`, within 24 hours |
 | Unofficial tools refuse | Tier is off. Set `IG_UNOFFICIAL=1` and run `instagram-mcp login` once |
 
 ## 12. FAQ ❓
@@ -648,7 +703,18 @@ It cannot, and neither can anything else. Instagram has no scheduling API. Produ
 that offer scheduling hold the post on their own servers and publish it at the
 time, which means handing them your content and your credentials.
 
-`create_container` is the honest version: stage it now, publish it when you say.
+`create_container` is the honest version: stage it now, publish it when you say,
+within the 24 hours Meta keeps a container.
+
+</details>
+
+<details>
+<summary><strong>Can it post a video from my computer?</strong></summary>
+
+Yes, on a Facebook Login account. Pass `file` with the path and it goes up
+through Meta's resumable upload, as a reel, a story or a carousel item. Not an
+image: Meta takes images only from a public URL. Instagram Login accounts
+publish from a URL too.
 
 </details>
 
