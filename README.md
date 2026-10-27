@@ -624,13 +624,13 @@ Mixed tiers in one file are fine and expected.
 ```json
 [
   {
-    "account_name": "thenavidm",
+    "account_name": "acmem",
     "user_id": "17841400000000000",
     "access_token": "IGQV...",
     "host": "graph.instagram.com"
   },
   {
-    "account_name": "thenavidai",
+    "account_name": "acmeai",
     "user_id": "17841400000000001",
     "access_token": "EAAG...",
     "host": "graph.facebook.com"
@@ -642,7 +642,7 @@ Every tool takes an optional `account` argument. When you leave it out, the
 `IG_PREFERRED` order decides, and an exact name match beats a prefix match.
 
 ```bash
-IG_PREFERRED=thenavidm,thenavidai
+IG_PREFERRED=acmem,acmeai
 ```
 
 ## 10. Notes and gotchas 🚧

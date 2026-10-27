@@ -18,10 +18,10 @@ from instagram_mcp.unofficial import Unofficial
 def settings(tmp_path) -> Settings:
     return Settings(
         accounts=[
-            Account(name="thenavidm", user_id="1", token="t1"),
-            Account(name="thenavidai", user_id="2", token="t2"),
+            Account(name="acmem", user_id="1", token="t1"),
+            Account(name="acmeai", user_id="2", token="t2"),
         ],
-        preferred=["thenavidm"],
+        preferred=["acmem"],
         data_dir=tmp_path,
     )
 

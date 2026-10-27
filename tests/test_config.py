@@ -18,15 +18,15 @@ from instagram_mcp.config import (
 def test_exact_match_beats_prefix_match():
     """The regression this ordering exists to prevent.
 
-    "Navid Media" starts with "navid m". A pure prefix match hands an unnamed
+    "Acme Media" starts with "acme m". A pure prefix match hands an unnamed
     post to the wrong account whenever both are connected.
     """
     settings = Settings(
         accounts=[
-            Account(name="Navid Media", user_id="1", token="t"),
-            Account(name="navid m", user_id="2", token="t"),
+            Account(name="Acme Media", user_id="1", token="t"),
+            Account(name="acme m", user_id="2", token="t"),
         ],
-        preferred=["navid m"],
+        preferred=["acme m"],
     )
     assert pick(settings).user_id == "2"
 
@@ -48,8 +48,8 @@ def test_falls_back_to_first_when_no_preference_matches():
 
 
 def test_named_account_is_matched_ignoring_at_sign_and_case():
-    settings = Settings(accounts=[Account(name="TheNavidM", user_id="9", token="t")])
-    assert pick(settings, "@thenavidm").user_id == "9"
+    settings = Settings(accounts=[Account(name="AcmeM", user_id="9", token="t")])
+    assert pick(settings, "@acmem").user_id == "9"
 
 
 def test_unknown_account_lists_what_is_connected():

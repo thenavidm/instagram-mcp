@@ -214,8 +214,8 @@ def pick(settings: Settings, name: str | None = None, *, host: str | None = None
 
     Ported from the HQ connector, including the reason it looks odd. When the
     caller names nobody, the preference list decides, and an exact match beats a
-    prefix match. Without that ordering a name like "Navid Media" wins the prefix
-    race against "navid m" and an unnamed post lands on the wrong account.
+    prefix match. Without that ordering a name like "Acme Media" wins the prefix
+    race against "acme m" and an unnamed post lands on the wrong account.
     """
     pool = [a for a in settings.accounts if host is None or a.host == host]
     if not pool:
