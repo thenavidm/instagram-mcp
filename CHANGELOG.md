@@ -2,10 +2,18 @@
 
 | Component | Version | Last Updated |
 |-----------|---------|--------------|
-| thenavidm-instagram-mcp | 0.4.0 | 2026-10-27 |
+| thenavidm-instagram-mcp | 0.5.0 | 2026-10-27 |
 | Graph API | v26.0 | 2026-10-27 |
 
 ---
+
+## 0.5.0, 2026-10-27
+
+Songs from Instagram's own library on a reel. 47 tools, from 46. From Meta's [Audio API](https://developers.facebook.com/docs/instagram-platform/content-publishing/audio-api/), read on 2026-10-27, and checked against real accounts with unpublished containers only.
+
+- **`search_audio`** searches the licensed library through `GET /ig_audio`: with no query it returns what is trending now (25 tracks), with one any song by name; `audio_type: original_sound` searches the sounds people made on their own reels. Each track comes with its `audio_id`, title, artist, length and a link to hear it on Instagram. Facebook Login only: Meta does not answer the Audio API on Instagram Login.
+- **`audio_id` on `publish_reel` and `create_container`** attaches the track as `audio_configuration`, with `audio_volume` and `video_volume` from 1 to 100. A reel container with a trending track and one with an original sound both came back `FINISHED`. Instagram attaches the song itself, so the reel names it and counts toward it, as one added in the app does.
+- **Reels only.** A carousel or a photo container refuses it in Meta's words: "audio_configuration is not a valid parameter for the media type, CAROUSEL_V2". The tools refuse it there first.
 
 ## 0.4.0, 2026-10-27
 

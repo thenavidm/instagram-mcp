@@ -19,10 +19,18 @@ Meta documents no upload for an image file. An image comes from a public URL.
 There is no native scheduling. Anything that claims to schedule an Instagram
 post is holding the job somewhere else and publishing it at the time. This
 server does not pretend otherwise.
+
+Music from Instagram's own licensed library attaches to a reel through Meta's
+Audio API: search_audio finds a track (trending when no query is given) and
+audio_id puts it on the reel. Meta supports it on Facebook Login only, and on
+reels only: a carousel or image container refuses audio_configuration with
+"not a valid parameter for the media type".
+https://developers.facebook.com/docs/instagram-platform/content-publishing/audio-api/
 """
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -150,6 +158,34 @@ def _one_source(**sources: str | None) -> None:
         )
 
 
+AUDIO_DOCS = "https://developers.facebook.com/docs/instagram-platform/content-publishing/audio-api/"
+
+
+def _audio(
+    target: Account, audio_id: str | None, audio_volume: int | None, video_volume: int | None
+) -> str | None:
+    """The audio_configuration field for a reel, as the JSON string Meta reads.
+
+    Meta takes volumes from 1 to 100 and the Audio API on Facebook Login only.
+    """
+    if not audio_id:
+        if audio_volume is not None or video_volume is not None:
+            raise InstagramError("audio_volume and video_volume need an audio_id.")
+        return None
+    if target.host != FACEBOOK_HOST:
+        raise InstagramError(
+            f"Music from Instagram's library attaches on the Facebook Login path only, and "
+            f"{target.name} uses Instagram Login (graph.instagram.com). {AUDIO_DOCS}"
+        )
+    config: dict[str, Any] = {"audio_id": str(audio_id)}
+    for name, value in (("audio_volume", audio_volume), ("video_volume", video_volume)):
+        if value is not None:
+            if not 1 <= value <= 100:
+                raise InstagramError(f"{name} runs from 1 to 100. You passed {value}.")
+            config[name] = value
+    return json.dumps(config)
+
+
 def _expires_at() -> str:
     return (datetime.now(UTC) + timedelta(hours=24)).isoformat(timespec="seconds")
 
@@ -192,6 +228,48 @@ def register(server: MCPServer, runtime: Runtime) -> None:
         audit(settings, "publish", {"account": target.name, "media_id": media_id})
         return detail
 
+    @server.tool(
+        description=(
+            "Search Instagram's licensed music library for a reel's sound, through Meta's Audio "
+            "API. With no query it returns what is trending now. Each track has an audio_id to "
+            "pass to publish_reel or create_container, its title, artist, length and a link to "
+            "hear it on Instagram. Facebook Login accounts only. audio_type music is the "
+            "licensed catalogue; original_sound is people's own reel audio."
+        ),
+        annotations=READ,
+    )
+    async def search_audio(
+        query: str | None = None,
+        audio_type: str = "music",
+        account: str | None = None,
+    ) -> dict[str, Any]:
+        if audio_type not in ("music", "original_sound"):
+            raise InstagramError("audio_type must be music or original_sound.")
+        target = pick(settings, account)
+        if target.host != FACEBOOK_HOST:
+            raise InstagramError(
+                f"Meta's Audio API answers on the Facebook Login path only, and {target.name} "
+                f"uses Instagram Login (graph.instagram.com). {AUDIO_DOCS}"
+            )
+        body = await graph.call(
+            target,
+            "/ig_audio",
+            {"audio_type": audio_type, "user_id": target.user_id, "search_query": query},
+        )
+        tracks = [
+            {
+                "audio_id": str(t.get("audio_id")),
+                "title": t.get("title"),
+                "artist": t.get("display_artist") or t.get("ig_username"),
+                "seconds": round((t.get("duration_in_ms") or 0) / 1000),
+                "listen": t.get("on_platform_audio_preview_link"),
+            }
+            for t in body.get("audio", [])
+        ]
+        return result(
+            target.tier, query=query, trending=not query, count=len(tracks), tracks=tracks
+        )
+
     @write(
         description=(
             "Stage media without posting it. Nothing appears in the app and the container "
@@ -200,7 +278,8 @@ def register(server: MCPServer, runtime: Runtime) -> None:
             "image_url or video_url, which Meta fetches, or file, the path of a video on this "
             "machine, which is uploaded now with Meta's resumable upload (Facebook Login "
             "accounts only; images need image_url). A video file stages as a reel unless "
-            "media_type is STORIES or is_carousel_item is set. Check it with "
+            "media_type is STORIES or is_carousel_item is set. A reel takes audio_id from "
+            "search_audio for a song from Instagram's library. Check it with "
             "get_container_status, then publish_container."
         ),
         annotations=WRITE,
@@ -215,6 +294,9 @@ def register(server: MCPServer, runtime: Runtime) -> None:
         is_carousel_item: bool = False,
         account: str | None = None,
         file: str | None = None,
+        audio_id: str | None = None,
+        audio_volume: int | None = None,
+        video_volume: int | None = None,
     ) -> dict[str, Any]:
         require_write(settings, "create_container")
         if media_type not in ("IMAGE", "REELS", "STORIES"):
@@ -230,6 +312,8 @@ def register(server: MCPServer, runtime: Runtime) -> None:
             _check_size(video, kind)
             target = pick(settings, account)
             _needs_facebook_login(target)
+            if audio_id and kind != "REELS":
+                raise InstagramError("Instagram attaches a song to a reel only.")
             container = await _create_from_file(
                 target,
                 video,
@@ -239,11 +323,14 @@ def register(server: MCPServer, runtime: Runtime) -> None:
                     "cover_url": cover_url,
                     "location_id": location_id,
                     "is_carousel_item": "true" if is_carousel_item else None,
+                    "audio_configuration": _audio(target, audio_id, audio_volume, video_volume),
                 },
             )
             staged: dict[str, Any] = {"media_type": kind, "uploaded_bytes": video.size}
         else:
             target = pick(settings, account)
+            if audio_id and media_type != "REELS":
+                raise InstagramError("Instagram attaches a song to a reel only.")
             container = await _create(
                 target,
                 {
@@ -255,9 +342,12 @@ def register(server: MCPServer, runtime: Runtime) -> None:
                     "cover_url": cover_url,
                     "location_id": location_id,
                     "is_carousel_item": "true" if is_carousel_item else None,
+                    "audio_configuration": _audio(target, audio_id, audio_volume, video_volume),
                 },
             )
             staged = {"media_type": media_type}
+        if audio_id:
+            staged["audio_id"] = str(audio_id)
         audit(settings, "create_container", {"account": target.name, "container_id": container})
         return result(
             target.tier,
@@ -440,7 +530,9 @@ def register(server: MCPServer, runtime: Runtime) -> None:
             "Publish a reel, with an optional cover image URL. Pass video_url, which Meta "
             "fetches, or file, the path of a video on this machine, uploaded with Meta's "
             "resumable upload (Facebook Login accounts only). Meta takes MP4 or MOV, 3 seconds "
-            "to 15 minutes, up to 300 MB; 9:16 avoids cropping."
+            "to 15 minutes, up to 300 MB; 9:16 avoids cropping. audio_id, from search_audio, "
+            "puts a song from Instagram's library on it; audio_volume and video_volume (1 to "
+            "100) set the song against the clip's own sound."
         ),
         annotations=WRITE,
     )
@@ -452,26 +544,32 @@ def register(server: MCPServer, runtime: Runtime) -> None:
         account: str | None = None,
         confirm: bool = False,
         file: str | None = None,
+        audio_id: str | None = None,
+        audio_volume: int | None = None,
+        video_volume: int | None = None,
     ) -> dict[str, Any]:
         require_write(settings, "publish_reel")
         require_confirm(confirm, "publish_reel", "publishes immediately and cannot be undone.")
         _one_source(video_url=video_url, file=file)
+        target = pick(settings, account)
         fields = {
             "media_type": "REELS",
             "caption": caption,
             "cover_url": cover_url,
             "share_to_feed": "true" if share_to_feed else "false",
+            "audio_configuration": _audio(target, audio_id, audio_volume, video_volume),
         }
         if file:
             video = local_video(file)
             _check_size(video, "REELS")
-            target = pick(settings, account)
             _needs_facebook_login(target)
             container = await _create_from_file(target, video, fields)
         else:
-            target = pick(settings, account)
             container = await _create(target, {**fields, "video_url": video_url})
-        return result(target.tier, **await _publish(target, container))
+        detail = await _publish(target, container)
+        if audio_id:
+            detail["audio_id"] = str(audio_id)
+        return result(target.tier, **detail)
 
     @write(
         description=(

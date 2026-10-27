@@ -54,6 +54,9 @@ The ones that cannot be undone from a chat window take `confirm: true`:
 `post`, `post_carousel`, `publish_reel`, `publish_story`, `publish_container`,
 `delete_comment`, `send_dm`, `private_reply_to_comment`, `unofficial_send_dm`.
 
+A song from Instagram's library goes on a reel only: `search_audio` (no query is what is trending) gives an
+`audio_id`, which `publish_reel` and `create_container` take. Facebook Login accounts only.
+
 Set `confirm` when the user has asked for that action. Do not set it to clear an
 error you did not expect, and do not set it on a first attempt at something the
 user described vaguely. A refused call costs one turn. A published post costs

@@ -222,7 +222,7 @@ def test_the_cli_entry_lists_every_tool(settings, monkeypatch, capsys, tmp_path)
         monkeypatch.delenv(name, raising=False)
     assert main(["tools", "--agent"]) == 0
     listed = json.loads(capsys.readouterr().out)
-    assert listed["count"] == 46
+    assert listed["count"] == 47
     reel = next(t for t in listed["tools"] if t["tool"] == "publish_reel")
     assert reel["requires_confirm"] is True and "file" in reel["args"]
     assert main(["call", "get_publishing_limit", "--agent"]) == 10

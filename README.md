@@ -25,7 +25,7 @@ Built by [Navid Moazzez](https://navid.me?utm_source=github&utm_medium=referral&
 | 4 | [Get your token](#4-get-your-token-) | One command does the exchange |
 | 5 | [Connect your client](#5-connect-your-client-) | Claude Code, Desktop, Cursor, the rest |
 | 6 | [Check it worked](#6-check-it-worked-) | `doctor`, and the two things that actually fail |
-| 7 | [Tools](#7-tools-) | All 46, by what they reach |
+| 7 | [Tools](#7-tools-) | All 47, by what they reach |
 | 8 | [The three tiers](#8-the-three-tiers-) | What each one can see |
 | 9 | [Multiple accounts](#9-multiple-accounts-) | One server, several logins |
 | 10 | [Notes and gotchas](#10-notes-and-gotchas-) | Quotas, windows, and silent failures |
@@ -440,7 +440,7 @@ instagram-mcp call create-container --account yourbrand \
 
 ### Every tool
 
-46 tools. Every result carries a `source` field naming the tier that answered,
+47 tools. Every result carries a `source` field naming the tier that answered,
 so a model can never present a scraped guess as an official metric.
 
 ### Your accounts
@@ -471,11 +471,18 @@ cannot be back-filled. This is the reason to install it before you need it.
 |---|---|
 | `create_container` | no, nothing goes public |
 | `get_container_status` | read |
+| `search_audio` | read |
 | `publish_container` | yes |
 | `post` | yes |
 | `post_carousel` | yes |
 | `publish_reel` | yes |
 | `publish_story` | yes |
+
+A reel can carry a song from Instagram's own licensed library: `search_audio` finds it (what is trending
+now when no query is given, or any song or sound by name) and `audio_id` on `publish_reel` or `create_container`
+attaches it, through Meta's Audio API, which answers on the Facebook Login path only. `audio_volume` and
+`video_volume` (1 to 100) set the song against the clip's own sound. Meta takes a song on reels only: a carousel
+or a photo refuses it.
 
 `create_container` stages media without posting. Nothing appears in the app and
 the container expires unused after 24 hours. It is the only draft-like state

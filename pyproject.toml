@@ -4,7 +4,7 @@
 # scopes, so an owner prefix is the closest equivalent to the @thenavidm npm
 # scope the other servers use. The installed command is still `instagram-mcp`.
 name = "thenavidm-instagram-mcp"
-version = "0.4.0"
+version = "0.5.0"
 description = "Instagram for AI agents. Official Graph API plus an opt-in unofficial tier, behind one tool surface."
 readme = "README.md"
 requires-python = ">=3.11"
